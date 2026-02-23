@@ -1416,6 +1416,23 @@
       }
       return true;
     }
+
+    let _serialApi = null;
+    async function initSerialApi() {
+      if (navigator.serial) { _serialApi = navigator.serial; return; }
+      try {
+        const { SerialPolyfill } = await import('https://unpkg.com/@google/web-serial-polyfill@1.0.15/dist/serial.js');
+        _serialApi = new SerialPolyfill();
+        console.log('[Serial] Web Serial Polyfill carregado (Android/WebUSB)');
+      } catch (e) {
+        console.warn('[Serial] Polyfill nao disponivel:', e);
+      }
+    }
+    initSerialApi();
+    async function getSerialApi() {
+      if (!_serialApi) await initSerialApi();
+      return _serialApi;
+    }
     
 
     if (!checkSerialAPISupport()) {
@@ -1617,18 +1634,14 @@
       try {
 
         
-        if (navigator.userAgent.indexOf("Chrome") != -1 && !navigator.userAgent.indexOf("Edge") != -1) {
-        console.log("This is Chrome browser.");
-        
-
-        if (!navigator.serial) {
-          throw new Error('Serial API not available. Please use Chrome/Edge browser.');
+        const serialApi = await getSerialApi();
+        if (!serialApi) {
+          throw new Error('Serial API nao disponivel. Use Chrome/Edge desktop ou Chrome Android com USB OTG.');
         }
-        
         console.log('æ­£åœ¨è¯·æ±‚ä¸²å£æƒé™...');
 
         await new Promise(resolve => setTimeout(resolve, 100));
-        const selectedPort = await navigator.serial.requestPort().catch(err => {
+        const selectedPort = await serialApi.requestPort().catch(err => {
           console.error('ä¸²å£æƒé™è¯·æ±‚å¤±è´¥:', err);
           if (err.name === 'NotAllowedError') {
             throw new Error(LANGS[currentLang]['serial-permission-denied']);
@@ -1721,10 +1734,6 @@
 
         onSerialConnected();
         readLoop();}
-        else
-        {
-          statusBox.textContent =LANGS[currentLang]['browser-not-support']
-        }
       } catch (err) {
         statusBox.textContent =LANGS[currentLang]['connect-failed'] + err;
         connectBtn.disabled = false;
@@ -2214,8 +2223,9 @@
     }
 
 
-    if (navigator.serial) {
-      navigator.serial.addEventListener('disconnect', (event) => {
+    getSerialApi().then(api => {
+      if (!api) return;
+      api.addEventListener('disconnect', (event) => {
         if (isSerialConnected && port === event.target) {
           updateSignalStrength(0);
           if(upDataFlag==2)
@@ -2236,7 +2246,7 @@
       });
 
 
-      navigator.serial.addEventListener('connect', (event) => {
+      api.addEventListener('connect', (event) => {
         console.log('æ£€æµ‹åˆ°æ–°çš„ä¸²å£è®¾å¤‡å·²è¿žæŽ¥:', event);
 
         if (!isSerialConnected) {
@@ -2257,7 +2267,7 @@
           }
         }
       });
-    }
+    });
 
 
     showConnectPage();
