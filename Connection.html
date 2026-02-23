@@ -1634,12 +1634,14 @@
       try {
 
         
+        statusBox.textContent = '[1/4] Carregando API serial...';
         const serialApi = await getSerialApi();
         if (!serialApi) {
           throw new Error('Serial API nao disponivel. Use Chrome/Edge desktop ou Chrome Android com USB OTG.');
         }
         console.log('æ­£åœ¨è¯·æ±‚ä¸²å£æƒé™...');
 
+        statusBox.textContent = '[2/4] Aguardando selecao da porta USB...';
         await new Promise(resolve => setTimeout(resolve, 100));
         const selectedPort = await serialApi.requestPort().catch(err => {
           console.error('ä¸²å£æƒé™è¯·æ±‚å¤±è´¥:', err);
@@ -1691,6 +1693,7 @@
             throw new Error('æ— æ³•ä½¿ç”¨460800æ³¢ç‰¹çŽ‡è¿žæŽ¥: ' + error.message);
           }
         }
+        statusBox.textContent = '[4/4] Abrindo conexao...';
         port = selectedPort;
         writer = port.writable.getWriter();
         reader = port.readable.getReader();
