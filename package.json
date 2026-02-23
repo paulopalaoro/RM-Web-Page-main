@@ -1,0 +1,28 @@
+{
+  "name": "rm-web-page-main",
+  "version": "1.0.0",
+  "description": "Página web do RM",
+  "main": "sw.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/paulopalaoro/APP-Radio.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/paulopalaoro/APP-Radio/issues"
+  },
+  "homepage": "https://github.com/paulopalaoro/APP-Radio#readme",
+  "dependencies": {
+    "@capacitor/android": "^8.1.0",
+    "@capacitor/core": "^8.1.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.1.0"
+  }
+}
