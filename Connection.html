@@ -1067,10 +1067,15 @@
         border-radius: 14px;
         margin: 0 12px;
       }
-      /* Navbar */
+      /* Navbar — 2 linhas: logo+bateria em cima, menu embaixo */
       #device-info-bar {
-        padding: 8px 12px;
-        min-height: 52px;
+        flex-wrap: wrap;
+        padding: 8px 12px 0 12px;
+        min-height: unset;
+        gap: 0;
+      }
+      .logo-section {
+        flex: 1;
       }
       #logo-img {
         height: 32px;
@@ -1085,17 +1090,36 @@
         min-width: 28px;
         letter-spacing: 0;
       }
+      .menu-section {
+        width: 100%;
+        order: 3;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        justify-content: flex-start;
+        padding-bottom: 4px;
+      }
+      .menu-section::-webkit-scrollbar {
+        display: none;
+      }
       .menu-bar {
-        gap: 2px;
+        gap: 0;
+        flex-wrap: nowrap;
+        white-space: nowrap;
       }
       .menu-btn {
-        padding: 8px 10px;
+        padding: 8px 12px;
         font-size: 0.82em;
         letter-spacing: 0;
+        flex-shrink: 0;
       }
       .menu-btn::after {
-        left: 10px;
-        right: 10px;
+        left: 12px;
+        right: 12px;
+      }
+      /* Ajuste padding-top do conteúdo para navbar de 2 linhas */
+      .main-flex-root {
+        padding-top: 108px;
       }
       /* Comm container — sobrescreve min-width: 900px !important */
       .comm-container {
