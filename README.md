@@ -1,14 +1,10 @@
 # RM-Web-Page
 Página web do RM
 
-## Página publicada
+## 🌐 Acesse Online
 
-Acesse a página em:
-**https://paulopalaoro.github.io/RM-Web-Page-main/Connection.html**
+A página está publicada via GitHub Pages e pode ser acessada diretamente pelo link:
 
-## Como visualizar
-
-1. Clique no link acima, ou
-2. Acesse o repositório em [github.com/paulopalaoro/RM-Web-Page-main](https://github.com/paulopalaoro/RM-Web-Page-main) e clique em **"View live demo"** via GitHub Pages.
+[**https://paulopalaoro.github.io/RM-Web-Page-main/Connection.html**](https://paulopalaoro.github.io/RM-Web-Page-main/Connection.html)
 
 > A página é um PWA (Progressive Web App) — no mobile é possível instalar diretamente pelo navegador.
