@@ -1067,23 +1067,31 @@
         border-radius: 14px;
         margin: 0 12px;
       }
-      /* Navbar — 2 linhas: logo+bateria em cima, menu embaixo */
+      /* Navbar — CSS Grid: logo+bateria linha 1, menu linha 2 */
       #device-info-bar {
-        flex-wrap: wrap;
-        padding: 8px 12px 0 12px;
+        display: grid !important;
+        grid-template-areas: "logo battery" "menu menu";
+        grid-template-columns: auto 1fr;
+        grid-template-rows: auto auto;
+        padding: 6px 12px 0 12px;
         min-height: unset;
         gap: 0;
+        align-items: center;
       }
       .logo-section {
-        flex: 1;
+        grid-area: logo;
+        display: flex;
+        align-items: center;
       }
       #logo-img {
         height: 32px;
         max-width: 80px;
       }
       .battery-section {
+        grid-area: battery;
         width: auto;
         min-width: 0;
+        justify-content: flex-end;
       }
       .battery-num {
         font-size: 0.88em;
@@ -1091,14 +1099,14 @@
         letter-spacing: 0;
       }
       .menu-section {
-        flex: 0 0 100% !important;
-        width: 100%;
-        order: 3;
+        grid-area: menu;
+        display: flex;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
         justify-content: flex-start;
         padding-bottom: 4px;
+        width: 100%;
       }
       .menu-section::-webkit-scrollbar {
         display: none;
@@ -1107,6 +1115,7 @@
         gap: 0;
         flex-wrap: nowrap;
         white-space: nowrap;
+        width: 100%;
       }
       .menu-btn {
         padding: 8px 12px;
