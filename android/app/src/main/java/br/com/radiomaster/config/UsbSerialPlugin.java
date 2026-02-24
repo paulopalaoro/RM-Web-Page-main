@@ -8,8 +8,8 @@ import android.content.IntentFilter;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
-import android.os.Build;
 import android.util.Base64;
+import android.util.Log;
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -27,56 +27,37 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Executors;
 
 @CapacitorPlugin(name = "UsbSerial")
 public class UsbSerialPlugin extends Plugin implements SerialInputOutputManager.Listener {
 
+    private static final String TAG = "UsbSerialPlugin";
     private static final String ACTION_USB_PERMISSION = "br.com.radiomaster.config.USB_PERMISSION";
 
     private UsbManager usbManager;
     private UsbSerialPort openPort = null;
     private SerialInputOutputManager ioManager;
-    private PluginCall pendingRequestPortCall = null;
-    private PluginCall pendingOpenCall = null;
     private List<UsbSerialDriver> availableDrivers = new ArrayList<>();
-
-    private final BroadcastReceiver usbPermissionReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (ACTION_USB_PERMISSION.equals(intent.getAction())) {
-                synchronized (this) {
-                    UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
-                    if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-                        if (pendingRequestPortCall != null && device != null) {
-                            resolveRequestPort(device);
-                        }
-                    } else {
-                        if (pendingRequestPortCall != null) {
-                            pendingRequestPortCall.reject("USB permission denied by user");
-                            pendingRequestPortCall = null;
-                        }
-                    }
-                }
-            }
-        }
-    };
 
     @Override
     public void load() {
         usbManager = (UsbManager) getContext().getSystemService(Context.USB_SERVICE);
-        IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            getContext().registerReceiver(usbPermissionReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
-        } else {
-            getContext().registerReceiver(usbPermissionReceiver, filter);
+        Log.d(TAG, "UsbSerialPlugin loaded");
+
+        HashMap<String, UsbDevice> deviceList = usbManager.getDeviceList();
+        Log.d(TAG, "USB devices connected on load: " + deviceList.size());
+        for (UsbDevice device : deviceList.values()) {
+            Log.d(TAG, "  Device: " + device.getDeviceName()
+                  + " VID:" + String.format("%04X", device.getVendorId())
+                  + " PID:" + String.format("%04X", device.getProductId()));
         }
     }
 
     @PluginMethod
     public void listPorts(PluginCall call) {
         availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager);
+        Log.d(TAG, "listPorts: found " + availableDrivers.size() + " serial devices");
         JSArray ports = new JSArray();
         for (int i = 0; i < availableDrivers.size(); i++) {
             UsbSerialDriver driver = availableDrivers.get(i);
@@ -97,46 +78,59 @@ public class UsbSerialPlugin extends Plugin implements SerialInputOutputManager.
     @PluginMethod
     public void requestPort(PluginCall call) {
         availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager);
+        Log.d(TAG, "requestPort: found " + availableDrivers.size() + " serial devices");
+
         if (availableDrivers.isEmpty()) {
-            call.reject("NotFoundError: No USB serial device found. Connect the device via USB OTG cable.");
+            call.reject("NotFoundError: No USB serial device found. Connect via USB OTG cable.");
             return;
         }
 
-        // If only one device, request permission directly
         UsbSerialDriver driver = availableDrivers.get(0);
         UsbDevice device = driver.getDevice();
+        Log.d(TAG, "requestPort: device VID=" + String.format("%04X", device.getVendorId())
+              + " PID=" + String.format("%04X", device.getProductId()));
 
         if (usbManager.hasPermission(device)) {
-            resolveRequestPortWithCall(call, device);
+            Log.d(TAG, "requestPort: permission already granted");
+            resolveRequestPortCall(call, device, 0);
         } else {
-            pendingRequestPortCall = call;
-            bridge.saveCall(call);
+            Log.d(TAG, "requestPort: requesting permission from user");
+
+            // Explicit intent required for Android 14+ (API 34+)
+            Intent intent = new Intent(ACTION_USB_PERMISSION);
+            intent.setPackage(getContext().getPackageName());
+
             PendingIntent permissionIntent = PendingIntent.getBroadcast(
-                getContext(), 0,
-                new Intent(ACTION_USB_PERMISSION),
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-                    ? PendingIntent.FLAG_MUTABLE
-                    : PendingIntent.FLAG_UPDATE_CURRENT
+                getContext(), 0, intent,
+                PendingIntent.FLAG_MUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
             );
+
+            IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
+            getContext().registerReceiver(new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    if (ACTION_USB_PERMISSION.equals(intent.getAction())) {
+                        synchronized (this) {
+                            UsbDevice usbDevice = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+                            if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
+                                Log.d(TAG, "requestPort: permission granted");
+                                UsbDevice resolved = (usbDevice != null) ? usbDevice : device;
+                                resolveRequestPortCall(call, resolved, 0);
+                            } else {
+                                Log.d(TAG, "requestPort: permission denied");
+                                call.reject("USB permission denied by user");
+                            }
+                            context.unregisterReceiver(this);
+                        }
+                    }
+                }
+            }, filter, Context.RECEIVER_NOT_EXPORTED);
+
             usbManager.requestPermission(device, permissionIntent);
         }
     }
 
-    private void resolveRequestPort(UsbDevice device) {
-        if (pendingRequestPortCall != null) {
-            resolveRequestPortWithCall(pendingRequestPortCall, device);
-            pendingRequestPortCall = null;
-        }
-    }
-
-    private void resolveRequestPortWithCall(PluginCall call, UsbDevice device) {
-        int portId = -1;
-        for (int i = 0; i < availableDrivers.size(); i++) {
-            if (availableDrivers.get(i).getDevice().equals(device)) {
-                portId = i;
-                break;
-            }
-        }
+    private void resolveRequestPortCall(PluginCall call, UsbDevice device, int portId) {
         JSObject result = new JSObject();
         result.put("portId", portId);
         result.put("vendorId", device.getVendorId());
@@ -149,9 +143,14 @@ public class UsbSerialPlugin extends Plugin implements SerialInputOutputManager.
     public void open(PluginCall call) {
         int portId = call.getInt("portId", 0);
         int baudRate = call.getInt("baudRate", 460800);
+        Log.d(TAG, "open: portId=" + portId + " baudRate=" + baudRate);
+
+        if (availableDrivers.isEmpty()) {
+            availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager);
+        }
 
         if (portId >= availableDrivers.size()) {
-            call.reject("Invalid portId");
+            call.reject("Invalid portId: " + portId + " (only " + availableDrivers.size() + " devices found)");
             return;
         }
 
@@ -168,7 +167,9 @@ public class UsbSerialPlugin extends Plugin implements SerialInputOutputManager.
             openPort.setParameters(baudRate, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
             openPort.setDTR(true);
             openPort.setRTS(true);
+            Log.d(TAG, "open: port opened successfully at " + baudRate + " baud");
         } catch (IOException e) {
+            Log.e(TAG, "open: failed - " + e.getMessage());
             call.reject("Failed to open port: " + e.getMessage());
             openPort = null;
             return;
@@ -192,15 +193,18 @@ public class UsbSerialPlugin extends Plugin implements SerialInputOutputManager.
         }
         try {
             byte[] bytes = Base64.decode(dataBase64, Base64.DEFAULT);
+            Log.d(TAG, "write: " + bytes.length + " bytes");
             openPort.write(bytes, 2000);
             call.resolve();
         } catch (IOException e) {
+            Log.e(TAG, "write: failed - " + e.getMessage());
             call.reject("Write failed: " + e.getMessage());
         }
     }
 
     @PluginMethod
     public void close(PluginCall call) {
+        Log.d(TAG, "close called");
         stopIoManager();
         if (openPort != null) {
             try { openPort.close(); } catch (IOException ignored) {}
@@ -218,6 +222,7 @@ public class UsbSerialPlugin extends Plugin implements SerialInputOutputManager.
         }
         try {
             openPort.setParameters(baudRate, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
+            Log.d(TAG, "setBaudRate: " + baudRate);
             call.resolve();
         } catch (IOException e) {
             call.reject("Failed to set baud rate: " + e.getMessage());
@@ -234,6 +239,7 @@ public class UsbSerialPlugin extends Plugin implements SerialInputOutputManager.
     // SerialInputOutputManager.Listener
     @Override
     public void onNewData(byte[] data) {
+        Log.d(TAG, "onNewData: " + data.length + " bytes");
         JSObject event = new JSObject();
         event.put("data", Base64.encodeToString(data, Base64.DEFAULT));
         notifyListeners("data", event);
@@ -241,6 +247,7 @@ public class UsbSerialPlugin extends Plugin implements SerialInputOutputManager.
 
     @Override
     public void onRunError(Exception e) {
+        Log.e(TAG, "onRunError: " + e.getMessage());
         stopIoManager();
         if (openPort != null) {
             try { openPort.close(); } catch (IOException ignored) {}

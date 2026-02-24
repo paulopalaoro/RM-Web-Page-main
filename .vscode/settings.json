@@ -1,0 +1,16 @@
+{
+  "java.jdt.ls.java.home": "C:/Program Files/Android/Android Studio/jbr",
+  "java.home": "C:/Program Files/Android/Android Studio/jbr",
+  "gradle.javaHome": "C:/Program Files/Android/Android Studio/jbr",
+  "gradle.gradleDaemon": true,
+  "gradle.reuseTerminals": "task",
+  "java.import.gradle.home": "",
+  "java.import.gradle.java.home": "C:/Program Files/Android/Android Studio/jbr",
+  "java.configuration.runtimes": [
+    {
+      "name": "JavaSE-21",
+      "path": "C:/Program Files/Android/Android Studio/jbr",
+      "default": true
+    }
+  ]
+}
