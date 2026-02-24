@@ -1,5 +1,14 @@
 {
   "appId": "br.com.radiomaster.config",
   "appName": "RadioMaster Config",
-  "webDir": "www"
+  "webDir": "www",
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0,
+      "launchAutoHide": true,
+      "showSpinner": false,
+      "splashFullScreen": false,
+      "splashImmersive": false
+    }
+  }
 }
